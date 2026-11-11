@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dataset Explorer</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Dataset Explorer</h1>
+    <span id="api-status" class="muted small"></span>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <label id="dropzone" class="dropzone">
+        <input type="file" id="file-input" accept=".csv,.tsv" hidden />
+        <strong>Upload a CSV</strong>
+        <span class="muted small">Drop it here or click. Up to <span id="max-mb">50</span> MB.</span>
+      </label>
+      <div id="upload-status" class="status" hidden></div>
+
+      <h2>Datasets</h2>
+      <ul id="dataset-list" class="dataset-list"></ul>
+    </aside>
+
+    <main>
+      <div id="banner" class="banner" hidden></div>
+
+      <section id="empty-state" class="card">
+        <h2>No dataset open</h2>
+        <p class="muted">Upload a CSV or pick one from the list. Uploads are saved on the server, so they survive a page refresh.</p>
+      </section>
+
+      <section id="dataset-view" hidden>
+        <div class="dataset-head">
+          <div>
+            <h2 id="ds-name"></h2>
+            <p id="ds-meta" class="muted small"></p>
+          </div>
+          <button id="delete-btn" class="danger">Delete dataset</button>
+        </div>
+
+        <nav class="tabs" id="tabs">
+          <button data-tab="preview" class="active">Preview</button>
+          <button data-tab="profile">Types & quality</button>
+          <button data-tab="stats">Statistics</button>
+          <button data-tab="charts">Charts</button>
+          <button data-tab="insights">Insights <span class="badge ai small">AI</span></button>
+        </nav>
+
+        <!-- Preview -->
+        <section class="panel" data-panel="preview">
+          <div class="card">
+            <div id="filters"></div>
+            <div class="row-actions">
+              <button id="add-filter">+ Add filter</button>
+              <button id="apply-filters" class="primary">Apply</button>
+              <button id="clear-filters" class="ghost">Clear</button>
+              <span id="row-count" class="muted small"></span>
+            </div>
+            <p id="filter-error" class="inline-error" hidden></p>
+          </div>
+          <p id="rows-error" class="inline-error" hidden></p>
+          <div class="table-wrap">
+            <table id="rows-table"></table>
+          </div>
+          <div class="pager">
+            <button id="prev" class="ghost">Previous</button>
+            <span id="page-info" class="muted small"></span>
+            <button id="next" class="ghost">Next</button>
+          </div>
+        </section>
+
+        <!-- Profile -->
+        <section class="panel" data-panel="profile" hidden>
+          <div id="profile-summary"></div>
+          <h3>Data quality</h3>
+          <div id="issues"></div>
+          <h3>Columns</h3>
+          <div class="table-wrap">
+            <table id="columns-table"></table>
+          </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="panel" data-panel="stats" hidden>
+          <p id="stats-error" class="inline-error" hidden></p>
+          <div id="stats-out" class="stats-grid"></div>
+        </section>
+
+        <!-- Charts -->
+        <section class="panel" data-panel="charts" hidden>
+          <div class="card">
+            <h3>Ask for a chart</h3>
+            <p class="muted small">Describe what you want to see. The assistant picks a chart, draws it, and explains why.</p>
+            <div class="ask-row">
+              <input id="ask-input" maxlength="500" placeholder="e.g. compare units and unit_price by region" />
+              <button id="ask-btn" class="primary">Ask</button>
+            </div>
+            <p id="ask-error" class="inline-error" hidden></p>
+            <div id="ask-out"></div>
+          </div>
+          <div class="card">
+            <div class="controls">
+              <label>Chart
+                <select id="c-kind">
+                  <option value="bar">Bar</option>
+                  <option value="histogram">Histogram</option>
+                  <option value="line">Line</option>
+                  <option value="scatter">Scatter</option>
+                  <option value="heatmap">Correlation heatmap</option>
+                </select>
+              </label>
+              <label>X
+                <select id="c-x"></select>
+              </label>
+              <label>Y (Ctrl+click for more)
+                <select id="c-y" multiple size="3"></select>
+              </label>
+              <label>Aggregate
+                <select id="c-agg">
+                  <option value="count">count</option>
+                  <option value="sum">sum</option>
+                  <option value="mean">mean</option>
+                  <option value="median">median</option>
+                  <option value="min">min</option>
+                  <option value="max">max</option>
+                </select>
+              </label>
+              <label>Scale
+                <select id="c-scale">
+                  <option value="auto">Auto</option>
+                  <option value="shared">Shared axis</option>
+                  <option value="dual">Two axes</option>
+                  <option value="indexed">Indexed (start = 100)</option>
+                </select>
+              </label>
+              <label>Bins
+                <input id="c-bins" type="number" min="2" max="100" value="20" />
+              </label>
+              <button id="c-draw" class="primary">Draw</button>
+            </div>
+            <p id="chart-note" class="inline-error" hidden></p>
+            <p id="chart-info" class="muted small" hidden></p>
+            <div class="chart-box"><canvas id="chart"></canvas></div>
+            <div id="heatmap" class="heatmap-wrap" hidden></div>
+          </div>
+        </section>
+
+        <!-- Insights -->
+        <section class="panel" data-panel="insights" hidden>
+          <div class="row-actions">
+            <button id="gen-insights" class="primary">Generate insights</button>
+            <button id="refresh-insights" class="ghost">Regenerate</button>
+          </div>
+          <p class="muted small">
+            Insights are written from a statistical profile of the file (column names, types, summary numbers, quality issues). Raw rows are not sent.
+            Without an AI key on the server you get rule-based insights instead, and they are labeled as such.
+          </p>
+          <div id="insights-out"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
